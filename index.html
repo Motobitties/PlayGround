@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#10100f" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='27' font-size='27' fill='%23d8f047'%3E%E2%9C%B3%3C/text%3E%3C/svg%3E" />
+  <title>Cursed Arsenal — Forge the Unforgivable</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Cursed Arsenal home"><span class="brand-mark">✳</span><span>CURSED<span class="brand-light">/ARSENAL</span></span></a>
+      <div class="top-status"><span class="live-dot"></span> THE FORGE IS <b>UNSTABLE</b><span class="status-divider"></span><span class="season">SEASON 01 <i>·</i> BAD IDEAS</span></div>
+      <button class="sound-toggle" id="soundToggle" aria-label="Toggle sound"><span class="sound-icon">♪</span><span id="soundLabel">SOUND OFF</span></button>
+    </header>
+
+    <main>
+      <section class="intro-row">
+        <div><div class="eyebrow"><span class="eyebrow-line"></span> UNLICENSED WEAPONRY LAB <span class="eyebrow-line"></span></div>
+          <h1>MAKE A <em>BAD</em><br class="mobile-break"> IDEA <span class="headline-outline">WORSE.</span></h1>
+        </div>
+        <p class="intro-copy">Two guns enter. One deeply questionable<br class="desktop-break"> invention leaves. <span>That's probably fine.</span></p>
+      </section>
+
+      <section class="forge-layout" aria-label="Weapon forge">
+        <aside class="blueprint-panel panel">
+          <div class="panel-head"><div><span class="step">01</span><span class="panel-title">PICK YOUR PARTS</span></div><span class="tiny-count" id="selectionCount">0 / 2</span></div>
+          <p class="panel-sub">Select two blueprints to splice together.</p>
+          <div class="blueprint-list" id="blueprintList"></div>
+          <div class="inventory-note"><span class="note-icon">✳</span><span>Every fusion is unique.<br><b>Probably shouldn't be.</b></span></div>
+        </aside>
+
+        <section class="workbench panel">
+          <div class="bench-top"><div><span class="step">02</span><span class="panel-title">THE ABOMINATION ENGINE</span></div><span class="machine-status"><span class="live-dot"></span> READY-ish</span></div>
+          <div class="weapon-stage" id="weaponStage">
+            <div class="stage-grid"></div><div class="stage-crosshair crosshair-a"></div><div class="stage-crosshair crosshair-b"></div>
+            <div class="weapon-glow"></div>
+            <canvas id="weaponCanvas" width="720" height="320" aria-label="Your generated cursed weapon"></canvas>
+            <div class="stage-label left-label"><span>SPECIMEN</span><b id="stageSpecimen">— —</b></div>
+            <div class="stage-label right-label"><span>CURSE INDEX</span><b id="curseIndex">??<small>%</small></b></div>
+            <div class="stage-empty" id="stageEmpty"><span class="empty-sigil">✳</span><b>AWAITING<br>BAD DECISIONS</b><small>Choose two blueprints to begin</small></div>
+            <div class="weapon-stamp" id="weaponStamp">CA-001 / UNTESTED</div>
+          </div>
+          <div class="forge-controls">
+            <div class="selected-parts"><div class="part-slot" id="slotOne"><span>PART A</span><b>EMPTY</b></div><span class="plus">+</span><div class="part-slot" id="slotTwo"><span>PART B</span><b>EMPTY</b></div></div>
+            <button class="forge-button" id="forgeButton" disabled><span class="forge-icon">✳</span><span>FUSE THESE MONSTERS</span><span class="button-arrow">↗</span></button>
+          </div>
+          <div class="prompt-row"><span class="prompt-spark">✦</span><label for="promptInput">OR WHISPER TO THE MACHINE</label><input id="promptInput" maxlength="70" placeholder="e.g. haunted tuba energy..." autocomplete="off"><button id="promptForge">GENERATE ↗</button></div>
+        </section>
+
+        <aside class="readout-panel panel">
+          <div class="panel-head"><div><span class="step">03</span><span class="panel-title">LAB READOUT</span></div><span class="readout-icon">⌁</span></div>
+          <div class="weapon-name-wrap"><div class="weapon-type" id="weaponType">NO SPECIMEN</div><h2 id="weaponName">The Void</h2><p id="weaponDesc">Your questionable creation will appear here. The lab accepts no responsibility for sentience.</p></div>
+          <div class="stats-list" id="statsList">
+            <div class="stat-row"><span>FIRE RATE</span><div class="stat-track"><i style="width:0%"></i></div><b>—</b></div>
+            <div class="stat-row"><span>CHAOS</span><div class="stat-track"><i style="width:0%"></i></div><b>—</b></div>
+            <div class="stat-row"><span>ACCURACY</span><div class="stat-track"><i style="width:0%"></i></div><b>—</b></div>
+            <div class="stat-row"><span>VIBE CHECK</span><div class="stat-track"><i style="width:0%"></i></div><b>???</b></div>
+          </div>
+          <div class="verdict-box"><span class="verdict-mark">!</span><div><b>SAFETY VERDICT</b><p id="safetyVerdict">Nope. Nothing to see here.</p></div></div>
+          <button class="test-button" id="testButton" disabled><span>▶</span> TAKE IT TO THE RANGE</button>
+        </aside>
+      </section>
+
+      <section class="range-section" id="rangeSection">
+        <div class="range-heading"><div><div class="eyebrow"><span class="eyebrow-line"></span> FIELD TEST <span class="eyebrow-line"></span></div><h2>THE <em>RANGE</em></h2></div><div class="range-instructions"><kbd>CLICK</kbd> or <kbd>SPACE</kbd> to fire <span>·</span> <kbd>R</kbd> reload <span>·</span> Hit the wobble-heads for points</div></div>
+        <div class="range-board panel" id="rangeBoard">
+          <div class="range-hud"><div class="ammo-display"><span>AMMO</span><b id="ammoCount">— —</b><div class="ammo-pips" id="ammoPips"></div></div><div class="score-display"><span>RANGE SCORE</span><b id="scoreCount">0000</b></div><div class="range-message" id="rangeMessage">EQUIP A SPECIMEN TO BEGIN</div><button id="reloadButton" class="reload-button" disabled>↻ RELOAD <kbd>R</kbd></button></div>
+          <canvas id="rangeCanvas" width="1100" height="340" aria-label="Shooting range game"></canvas>
+          <div class="range-overlay" id="rangeOverlay"><div class="overlay-stamp">TEST CHAMBER // 01</div><span class="overlay-sigil">✳</span><b>NOTHING TO<br>SHOOT YET.</b><small>Forge a weapon, then take it for a spin.</small><button id="overlayForge">BACK TO THE FORGE ↑</button></div>
+          <div class="range-foot"><span>⚠ SIMULATED BALLISTICS ONLY</span><span>THE TARGETS ARE MOSTLY CARDBOARD <i>…MOSTLY</i></span><span id="bestScore">BEST: 0000</span></div>
+        </div>
+      </section>
+      <footer><span>CURSED/ARSENAL <i>®</i></span><span>MADE IN A BASEMENT SOMEWHERE <b>·</b> DON'T TRY THIS AT HOME (OR ANYWHERE)</span><span>v1.0.4 <i>✳</i></span></footer>
+    </main>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </div>
+  <script src="game.js"></script>
+</body>
+</html>
