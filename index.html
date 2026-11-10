@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#090d17">
+  <title>AFTERLIGHT — The Quiet Signal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Afterlight home"><span class="brand-mark">✳</span><span>AFTERLIGHT</span><span class="brand-divider"></span><span class="brand-sub">THE QUIET SIGNAL</span></a>
+      <div class="station-status"><span class="status-dot"></span><span>STATION 07</span><span class="status-sep">/</span><span id="statusText">LISTENING</span></div>
+      <button class="icon-button" id="soundButton" aria-label="Toggle sound" title="Sound effects">♫<span class="sound-label">SOUND OFF</span></button>
+    </header>
+
+    <main class="game-layout">
+      <section class="main-column">
+        <div class="intro-row">
+          <div><div class="eyebrow"><span class="live-line"></span> OUTPOST AT THE EDGE OF THE KNOWN</div><h1>Someone is still <em>out there.</em></h1><p class="intro-copy">The world went quiet. Your little antenna didn't.</p></div>
+          <div class="day-chip"><span class="chip-label">CYCLE</span><strong id="cycleNumber">01</strong><span class="chip-divider"></span><span id="cycleName">THE FIRST PING</span></div>
+        </div>
+
+        <section class="resource-strip" aria-label="Your resources">
+          <div class="resource-primary"><span class="resource-symbol">◉</span><div><div class="resource-label">SIGNAL</div><div class="resource-number" id="signalAmount">0</div></div></div>
+          <div class="resource-stat"><span>DRIFT / SEC</span><strong id="rateAmount">0</strong></div>
+          <div class="resource-stat"><span>PER PULSE</span><strong id="clickAmount">1</strong></div>
+          <div class="next-goal"><span class="resource-label">NEXT DISCOVERY</span><strong id="nextGoal">24 signal</strong><div class="goal-track"><span id="goalFill"></span></div></div>
+        </section>
+
+        <section class="core-stage" id="coreStage">
+          <div class="stage-topline"><span><i class="tiny-star">✦</i> THE LISTENING ROOM</span><span class="coordinates">42° N &nbsp;·&nbsp; 18° W</span></div>
+          <div class="star-field" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="moon moon-one"></div><div class="moon moon-two"></div>
+          <div class="orbit orbit-a"><span class="orbit-dot"></span></div><div class="orbit orbit-b"><span class="orbit-dot"></span></div>
+          <button class="signal-core" id="pulseButton" aria-label="Send a signal pulse"><span class="core-halo"></span><span class="core-inner"><span class="core-icon">✳</span><span class="core-word">PULSE</span></span></button>
+          <div class="stage-caption"><span class="caption-line"></span><span>TOUCH THE VOID. SEND A PULSE.</span><span class="caption-line"></span></div>
+          <div class="pulse-meter"><span class="meter-label">RESONANCE</span><div class="meter-track"><span id="resonanceFill"></span></div><span id="resonanceText">0%</span></div>
+        </section>
+
+        <section class="frequency-panel">
+          <div class="section-heading"><div><span class="eyebrow">A LITTLE HUMAN INTUITION</span><h2>Choose a frequency</h2></div><span class="frequency-hint">The sky shifts every 60 seconds</span></div>
+          <div class="frequency-list" id="frequencyList">
+            <button class="frequency-card active" data-frequency="warm"><span class="freq-icon">☼</span><span class="freq-name">WARMTH</span><span class="freq-desc">Pulse strength</span><span class="freq-bonus">+25% pulse</span></button>
+            <button class="frequency-card" data-frequency="deep"><span class="freq-icon">⌁</span><span class="freq-name">DEEP SPACE</span><span class="freq-desc">Drift rate</span><span class="freq-bonus">+20% drift</span></button>
+            <button class="frequency-card" data-frequency="clear"><span class="freq-icon">✧</span><span class="freq-name">CLEAR SKY</span><span class="freq-desc">Echo chance</span><span class="freq-bonus">+10% echoes</span></button>
+          </div>
+          <div class="sky-status"><span class="sky-pip"></span><span id="skyText">WARMTH IS IN PHASE</span><span class="sky-timer" id="skyTimer">SHIFT IN 60S</span></div>
+        </section>
+      </section>
+
+      <aside class="side-column">
+        <section class="story-card"><div class="story-top"><span class="eyebrow">INCOMING · FRAGMENT 01</span><span class="story-star">✦</span></div><p id="storyText">“I used to leave the porch light on. Just in case.”</p><div class="story-foot"><span>— UNIDENTIFIED VOICE</span><span class="signal-bars"><i></i><i></i><i></i><i></i><i></i></span></div></section>
+        <section class="upgrade-panel">
+          <div class="section-heading upgrade-heading"><div><span class="eyebrow">MAKE THE QUIET WORK FOR YOU</span><h2>Build the signal</h2></div><span class="upgrade-count" id="upgradeCount">0 BUILT</span></div>
+          <div class="upgrade-list" id="upgradeList"></div>
+        </section>
+        <section class="mission-card" id="missionCard"><div class="mission-icon">⌖</div><div class="mission-content"><span class="eyebrow">FIELD NOTE <span id="missionNumber">01</span></span><strong id="missionTitle">A voice in the dark</strong><span id="missionDescription">Send 12 pulses to make the old dish hum.</span><div class="mission-progress"><div class="mission-track"><span id="missionFill"></span></div><span id="missionProgress">0 / 12</span></div></div><span class="mission-reward">+<b id="missionReward">12</b> ◉</span></section>
+        <section class="archive-card"><div class="archive-header"><div><span class="eyebrow">WHAT THE DARK GAVE BACK</span><h2>Recovered echoes</h2></div><span class="echo-count"><span>✧</span><b id="echoCount">0</b></span></div><div class="echo-list" id="echoList"><span class="empty-echo">Your first echo is waiting in the noise.</span></div><button class="transmit-button" id="transmitButton" disabled><span>✦</span> BEGIN A NEW TRANSMISSION <span class="transmit-cost">NEED 100K SIGNAL</span></button></section>
+      </aside>
+    </main>
+    <footer><span>THE LIGHT IS NOT A MESSAGE. IT'S A REASON TO ANSWER.</span><div><span class="save-indicator"><i></i> AUTO-SAVED</span><button id="resetButton" class="reset-button">RESET STATION</button></div></footer>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="modal-backdrop" id="modalBackdrop" aria-hidden="true"><div class="modal"><button class="modal-close" id="modalClose" aria-label="Close">×</button><span class="modal-symbol">✳</span><span class="eyebrow">A TRANSMISSION CARRIES MORE THAN SIGNAL</span><h2>Start again, <em>with company.</em></h2><p>Your station will go quiet, but everything you learned stays with you. The next signal will find you faster.</p><div class="modal-echo"><span>✧</span><strong id="modalEchoGain">+1 ECHO</strong><small>PERMANENT DRIFT BONUS</small></div><button class="modal-confirm" id="modalConfirm">SEND THE TRANSMISSION</button><button class="modal-cancel" id="modalCancel">Not yet. Keep listening.</button></div></div>
+  <script src="game.js"></script>
+</body>
+</html>
