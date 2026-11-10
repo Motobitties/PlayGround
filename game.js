@@ -99,11 +99,7 @@
     c.restore();
   }
   function equip(g) {
-    maxAmmo=Math.max(4,Math.min(12,Math.round(4+g.fire/14))); ammo=maxAmmo; score=0;
-    $('#scoreCount').textContent='0000'; updateAmmo(); $('#rangeOverlay').classList.add('hidden'); $('#rangeBoard').classList.add('active'); $('#rangeMessage').textContent='SPECIMEN LOADED · TRY NOT TO PANIC'; $('#reloadButton').disabled=false;
-    const boardWidth = range._logicalW || 1100;
-    const boardHeight = range._logicalH || 180;
-    targets=[]; for(let i=0;i<5;i++) targets.push({x:boardWidth*(.12+i*.19),y:boardHeight*(i%2?.66:.36),r:Math.max(18,Math.min(28,boardHeight*.15)),phase:Math.random()*7,alive:true,speed:(.4+Math.random()*.55)*(i%2?1:-1),bob:Math.min(8,boardHeight*.04)});
+    if (window.CursedFPS) window.CursedFPS.equip(g);
   }
   function updateAmmo() { $('#ammoCount').textContent=`${String(ammo).padStart(2,'0')} / ${String(maxAmmo).padStart(2,'0')}`; $('#ammoPips').innerHTML=Array.from({length:maxAmmo},(_,i)=>`<i class="${i>=ammo?'spent':''}"></i>`).join(''); }
   function reload() { if(!current||reloading||ammo===maxAmmo)return; reloading=true;$('#rangeMessage').textContent='RELOADING… DON\'T LOOK DIRECTLY AT IT';$('#reloadButton').disabled=true;setTimeout(()=>{ammo=maxAmmo;reloading=false;updateAmmo();$('#rangeMessage').textContent='RELOAD COMPLETE · QUESTIONABLE AS EVER';$('#reloadButton').disabled=false;if(soundOn)beep(380,.14,'triangle')},750); }
@@ -144,10 +140,7 @@
   function promptGenerate(){const prompt=$('#promptInput').value.trim();const a=blueprints[Math.floor(Math.random()*blueprints.length)], b=blueprints.filter(x=>x.id!==a.id)[Math.floor(Math.random()*(blueprints.length-1))];selected=[a.id,b.id];updateSelection();renderBlueprints();combine(a,b,prompt);$('#promptInput').value='';}
   $('#promptForge').addEventListener('click',promptGenerate);$('#promptInput').addEventListener('keydown',e=>{if(e.key==='Enter')promptGenerate()});
   $('#testButton').addEventListener('click',()=>$('#rangeSection').scrollIntoView({behavior:'smooth'}));$('#overlayForge').addEventListener('click',()=>window.scrollTo({top:0,behavior:'smooth'}));
-  $('#reloadButton').addEventListener('click',reload);
-  range.addEventListener('pointermove',updateMouse);range.addEventListener('pointerdown',e=>{updateMouse(e);shoot()});
-  window.addEventListener('keydown',e=>{if(e.code==='Space'&&document.activeElement.tagName!=='INPUT'){e.preventDefault();shoot()}if(e.key.toLowerCase()==='r'&&document.activeElement.tagName!=='INPUT')reload()});
-  $('#soundToggle').addEventListener('click',()=>{soundOn=!soundOn;$('#soundLabel').textContent=soundOn?'SOUND ON':'SOUND OFF';if(soundOn)beep(440,.1,'sine')});
+  $('#soundToggle').addEventListener('click',()=>{soundOn=!soundOn;$('#soundLabel').textContent=soundOn?'SOUND ON':'SOUND OFF';window.CursedFPS?.setSound(soundOn);if(soundOn)beep(440,.1,'sine')});
   window.addEventListener('resize',resizeRange);
   renderBlueprints();updateSelection();resizeRange();requestAnimationFrame(animation);
 })();
