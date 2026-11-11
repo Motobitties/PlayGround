@@ -30,7 +30,7 @@
   }
   function freshGame(mode) {
     clearTimeout(pendingCpu);
-    game={mode,score:{home:0,away:0},quarter:1,clock:900,progress:25,down:1,toGo:10,possession:'home',phase:'offense',selected:null,offCall:null,feed:[],gameOver:false,teams:{home:$('#homeTeamSelect').value,away:$('#awayTeamSelect').value},turnovers:0,yards:0};
+    game={mode,score:{home:0,away:0},quarter:1,clock:900,progress:25,down:1,toGo:10,possession:'home',phase:'offense',selected:null,offCall:null,feed:[],gameOver:false,secondHalfKickoff:false,teams:{home:$('#homeTeamSelect').value,away:$('#awayTeamSelect').value},turnovers:0,yards:0,drives:1};
     log(`Kickoff! ${teamName('home')} starts at its own 25.`); render();
   }
   function fieldSetup() {
@@ -56,7 +56,7 @@
     $('#quarterLabel').textContent=game.gameOver?'FINAL':`${labels[game.quarter]} QUARTER`;$('#clockLabel').textContent=clockText();$('#possessionTime').textContent=clockText();
     $('#possessionLabel').textContent=`${game.possession==='home'?'YOUR BALL':`${game.mode==='cpu'?'CPU':teamName('away').toUpperCase()} BALL`}`;$('#possessionLabel').style.color=game.possession==='home'?'var(--lime)':'var(--blue)';
     $('#downDistance').innerHTML=`${labels[game.down].toLowerCase()} &amp; ${game.toGo}`;renderField();
-    $('#driveCount').textContent='—';$('#yardsStat').textContent=game.yards;$('#turnoverStat').textContent=game.turnovers;$('#recordLabel').textContent=`${game.score.home}–${game.score.away}`;
+    $('#driveCount').textContent=game.drives;$('#yardsStat').textContent=game.yards;$('#turnoverStat').textContent=game.turnovers;$('#recordLabel').textContent=`${game.score.home}–${game.score.away}`;
     $('#gameStatus').textContent=game.gameOver?'FINAL WHISTLE':game.mode==='cpu'?'SUNDAY SHOWDOWN · VS CPU':'PASS & PLAY · TWO COACHES';
     renderPanel();
   }
@@ -65,7 +65,7 @@
     return `<button class="match-card ${game.selected===index?'picked':''}" data-card="${index}" data-type="${type}" draggable="true"><span class="match-card-icon">${card.icon}</span><b>${card.name}</b><small>${sub}</small></button>`;
   }
   function renderPanel() {
-    if(game.gameOver){panel.innerHTML=`<div class="match-heading"><div><div class="eyebrow">FINAL WHISTLE</div><h2>${game.score.home===game.score.away?'It’s a tie!':`${teamName(game.score.home>game.score.away?'home':'away')} wins!`}</h2></div><button class="match-button" data-action="menu">NEW GAME</button></div><p class="match-copy">Final score · ${game.score.home} — ${game.score.away}. Start a new matchup to play again.</p>`;return}
+    if(game.gameOver&&game.phase!=='conversion'){panel.innerHTML=`<div class="match-heading"><div><div class="eyebrow">FINAL WHISTLE</div><h2>${game.score.home===game.score.away?'It’s a tie!':`${teamName(game.score.home>game.score.away?'home':'away')} wins!`}</h2></div><button class="match-button" data-action="menu">NEW GAME</button></div><p class="match-copy">Final score · ${game.score.home} — ${game.score.away}. Start a new matchup to play again.</p>`;return}
     if(!game.mode){panel.innerHTML=`<div class="eyebrow">PICK YOUR MATCHUP</div><h2 class="mode-title">Ready for kickoff?</h2><p class="match-copy">Call the play. Read the defense. March 100 yards to glory.</p><div class="mode-grid"><button class="mode-choice" data-mode="cpu"><span>🤖</span><b>Solo vs CPU</b><small>Call offense and defend against the computer.</small></button><button class="mode-choice" data-mode="pass"><span>📱</span><b>Pass &amp; Play</b><small>Two coaches take turns with hidden calls.</small></button></div>`;return}
     if(game.phase==='conversion'){
       const scorer=game.conversionTeam, userControls=scorer==='home'||game.mode==='pass';
@@ -104,17 +104,19 @@
   function advanceClock() {
     game.clock=Math.max(0,game.clock-30);
     if(game.clock===0){
-      if(game.quarter<4){game.quarter++;game.clock=900;log(game.quarter===3?'Halftime. Third quarter kickoff!':`${labels[game.quarter]} quarter begins.`);if(game.quarter===3){game.possession=game.possession==='home'?'away':'home';game.progress=25;game.down=1;game.toGo=10}}
+      if(game.quarter<4){game.quarter++;game.clock=900;if(game.quarter===3){game.secondHalfKickoff=true;log('Halftime. Third quarter kickoff!')}else log(`${labels[game.quarter]} quarter begins.`)}
       else {game.gameOver=true;log('Final whistle. That’s the game!','score')}
     }
   }
   function nextPossession({kickoff=false,spot=null}={}) {
-    const prev=game.possession;game.possession=prev==='home'?'away':'home';game.progress=kickoff?25:Math.max(1,Math.min(99,spot===null?100-game.progress:spot));game.down=1;game.toGo=10;game.phase='offense';game.selected=null;game.offCall=null;
+    if(game.secondHalfKickoff){game.possession='away';game.progress=25;game.secondHalfKickoff=false}
+    else {const prev=game.possession;game.possession=prev==='home'?'away':'home';game.progress=kickoff?25:Math.max(1,Math.min(99,spot===null?100-game.progress:spot))}
+    game.down=1;game.toGo=10;game.phase='offense';game.selected=null;game.offCall=null;game.drives++;
   }
   function finishDriveAfterScore() { nextPossession({kickoff:true}); }
   function touchdown(side) {
     game.score[side]+=6;game.conversionTeam=side;game.phase='conversion';game.selected=null;game.offCall=null;log(`Touchdown, ${teamName(side)}! Six points.`,'score');
-    if(side==='away'&&game.mode==='cpu'){pendingCpu=setTimeout(()=>{if(!game||game.gameOver)return;game.score.away+=1;log('CPU extra point is good.');afterConversion()},650)}
+    if(side==='away'&&game.mode==='cpu'){pendingCpu=setTimeout(()=>{if(!game||game.phase!=='conversion'||game.conversionTeam!=='away')return;game.score.away+=1;log('CPU extra point is good.');afterConversion()},650)}
   }
   function afterConversion() {game.conversionTeam=null;finishDriveAfterScore();render();if(game.possession==='away'&&game.mode==='cpu')scheduleCpu();}
   function finishTurnover(spot,reason) {game.turnovers++;log(reason,'turnover');nextPossession({spot});}
@@ -155,23 +157,24 @@
     if(yards>=game.toGo){game.down=1;game.toGo=Math.min(10,100-game.progress);log('First down! Chains move.')}
     else {game.down++;game.toGo=Math.max(1,game.toGo-yards)}
     if(game.down>4){game.lastResult='Turnover on downs';finishTurnover(100-game.progress,`${teamName(side)} turns it over on downs.`)}
-    else {game.phase='offense';game.selected=null;game.offCall=null}
+    else {game.phase='offense';game.selected=null;game.offCall=null;if(game.secondHalfKickoff)nextPossession({kickoff:true})}
     if(game.gameOver){render();return}render();if(game.possession==='away'&&game.mode==='cpu')scheduleCpu();
   }
   function scheduleCpu(){clearTimeout(pendingCpu);if(!game||game.mode!=='cpu'||game.possession!=='away'||game.gameOver||game.phase==='conversion')return;pendingCpu=setTimeout(cpuOffense,700)}
   function cpuOffense(){if(game.gameOver||game.possession!=='away')return;let off;
-    if(game.down===4&&game.progress>=58&&Math.random()<.5)off=offenseCards[5];
-    else if(game.down===4&&game.progress<58&&game.progress>55&&Math.random()<.25)off=offenseCards[4];
+    if(game.down===4&&game.progress>=58&&Math.random()<.62)off=offenseCards[5];
+    else if(game.down===4&&game.progress<55)off=offenseCards[4];
     else off=offenseCards[[0,1,2,3][rand(0,3)]];
     game.offCall=off;game.phase='defense';game.selected=null;render();
     // CPU attacks are resolved after a short defensive-read pause; the human picks the counter.
   }
-  function chooseConversion(action){const side=game.conversionTeam;if(!side)return;if(action==='kick-xp'){game.score[side]+=1;log(`${teamName(side)} extra point is good.`,'score')}else{const roll=diceRoll(),made=Math.random()<.48+(roll[0]+roll[1]>=10?.14:0);game.lastDice=roll;if(made){game.score[side]+=2;log(`${teamName(side)} converts the two-point try!`,'score')}else log('Two-point attempt is stopped.','turnover')};advanceClock();if(!game.gameOver)afterConversion();else render()}
+  function chooseConversion(action){const side=game.conversionTeam;if(!side)return;if(action==='kick-xp'){game.score[side]+=1;log(`${teamName(side)} extra point is good.`,'score')}else{const roll=diceRoll(),made=Math.random()<.48+(roll[0]+roll[1]>=10?.14:0);game.lastDice=roll;if(made){game.score[side]+=2;log(`${teamName(side)} converts the two-point try!`,'score')}else log('Two-point attempt is stopped.','turnover')};afterConversion()}
+  function showMenu(){clearTimeout(pendingCpu);if(game){game.mode=null;game.gameOver=false;game.phase='offense';game.selected=null;game.offCall=null}render()}
   panel.addEventListener('click',e=>{
     const btn=e.target.closest('button');if(!btn)return;
     if(btn.dataset.mode){freshGame(btn.dataset.mode);return}
     const action=btn.dataset.action;
-    if(action==='menu'){game.mode=null;game.gameOver=false;render();return}
+    if(action==='menu'){showMenu();return}
     if(action==='ready'){game.phase='defense';game.selected=null;render();return}
     if(action==='snap'){lockOffense(game.selected);return}
     if(action==='reveal'){const def=defenseCards[game.selected];resolvePlay(game.offCall,def);return}
@@ -184,7 +187,7 @@
   panel.addEventListener('drop',e=>{const target=e.target.closest('.match-drop');if(!target)return;e.preventDefault();if(dragIndex!==null){game.selected=dragIndex;render();const action=target.dataset.action;if(action==='snap')lockOffense(dragIndex);else if(action==='reveal')resolvePlay(game.offCall,defenseCards[dragIndex])}dragIndex=null});
   // Scoreboard team pickers start a fresh matchup and retain the current game mode.
   ['homeTeamSelect','awayTeamSelect'].forEach(id=>$( '#'+id).addEventListener('change',e=>{e.stopImmediatePropagation();const changed=id==='homeTeamSelect'?'home':'away',other=changed==='home'?'away':'home';if(e.target.value===$(`#${other}TeamSelect`).value){const replacement=teams.find(t=>t.abbr!==e.target.value);$(`#${other}TeamSelect`).value=replacement.abbr}freshGame(game?.mode||'cpu')},true));
-  $('#newGameBtn').addEventListener('click',e=>{e.stopImmediatePropagation();game.mode=null;render()},true);
+  $('#newGameBtn').addEventListener('click',e=>{e.stopImmediatePropagation();showMenu()},true);
   $('#helpBtn').addEventListener('click',e=>{e.stopImmediatePropagation();showModal('How to play','<p><b>Play solo or pass and play:</b> Choose CPU or two-player mode. On offense, select a play and snap. In pass-and-play, pass the device after the hidden call so the defender can choose a counter.</p><p><b>Four downs:</b> Gain 10 yards to reset the downs. Turnovers, interceptions, fumbles, and failed fourth downs give the ball to the opponent. Punt or attempt a field goal on fourth down.</p><p><b>Dice &amp; matchups:</b> Every play rolls two six-sided dice. High rolls boost gains; low rolls make stops and turnovers more likely. Defensive counters change the play odds. Each play uses 30 seconds of the 15-minute quarter clock.</p><p><b>Scoring:</b> Touchdown = 6, extra point = 1, two-point try = 2, field goal = 3, safety = 2. Four quarters; most points wins.</p><p><b>Controls:</b> Tap a card to select, then snap/reveal. You can also drag a card onto the action button.</p>','GOT IT')},true);
   // Prevent the legacy single-player interval from touching the new card game.
   state.gameOver=true;state.possession='away';game={mode:null};renderPanel();fieldSetup();
