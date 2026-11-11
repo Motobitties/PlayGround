@@ -18,7 +18,7 @@
     {name:'Special Teams',type:'special',icon:'🛡️'}
   ];
   const labels = ['','1ST','2ND','3RD','4TH'];
-  let game, pendingCpu;
+  let game, pendingCpu, crowdAudio, fieldDiceTimer;
   const modeName = () => game.mode === 'cpu' ? 'CPU' : 'PLAYER 2';
   const teamName = side => { const t=teams.find(x=>x.abbr===game.teams[side]); return t?.nickname || (side==='home'?'HOME':'AWAY'); };
   const rand = (a,b) => Math.floor(Math.random()*(b-a+1))+a;
@@ -36,7 +36,37 @@
   function fieldSetup() {
     const field=$('#field'); if(!field||field.querySelector('.portrait-field'))return;
     field.querySelectorAll('.yardlines,.yard-labels,.field-markers').forEach(el=>el.hidden=true);
-    field.insertAdjacentHTML('beforeend','<div class="portrait-field"><div class="endzone endzone-away">AWAY END ZONE</div><div class="field-grid"></div><div class="yard-stamps"><i>10</i><i>20</i><i>30</i><i>40</i><i>50</i><i>40</i><i>30</i><i>20</i><i>10</i></div><div class="p-first"></div><div class="p-ball">🏈</div><div class="endzone endzone-home">HOME END ZONE</div></div>');
+    field.insertAdjacentHTML('beforeend','<div class="portrait-field"><div class="endzone endzone-away">AWAY END ZONE</div><div class="field-grid"></div><div class="yard-stamps"><i>10</i><i>20</i><i>30</i><i>40</i><i>50</i><i>40</i><i>30</i><i>20</i><i>10</i></div><div class="p-first" aria-hidden="true"></div><div class="p-ball" aria-label="Football">🏈</div><div class="field-dice" aria-hidden="true"><span class="field-die"></span><span class="field-die"></span></div><div class="endzone endzone-home">HOME END ZONE</div></div>');
+  }
+  function playCrowdCheer() {
+    const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+    if(!AudioContextClass)return;
+    try {
+      if(!crowdAudio){
+        const context=new AudioContextClass(),buffer=context.createBuffer(1,context.sampleRate*2.6,context.sampleRate),samples=buffer.getChannelData(0);
+        for(let i=0;i<samples.length;i++)samples[i]=(Math.random()*2-1)*(.35+Math.random()*.65);
+        crowdAudio={context,buffer};
+      }
+      const {context,buffer}=crowdAudio;
+      if(context.state==='suspended')context.resume();
+      const source=context.createBufferSource(),high=context.createBiquadFilter(),mid=context.createBiquadFilter(),low=context.createBiquadFilter(),gain=context.createGain();
+      source.buffer=buffer;high.type='highpass';high.frequency.value=180;mid.type='bandpass';mid.frequency.value=780;mid.Q.value=.55;low.type='lowpass';low.frequency.value=2400;
+      source.connect(high);high.connect(mid);mid.connect(low);low.connect(gain);gain.connect(context.destination);
+      const now=context.currentTime;gain.gain.setValueAtTime(.001,now);gain.gain.exponentialRampToValueAtTime(.12,now+.22);gain.gain.setTargetAtTime(.025,now+.8,.55);gain.gain.setValueAtTime(.001,now+2.5);
+      source.start(now);source.stop(now+2.6);
+    } catch(error) { /* Audio is an enhancement; keep gameplay available if unavailable. */ }
+  }
+  function animateFieldDice(dice,emphatic=false) {
+    const tray=$('.field-dice');if(!tray||!dice)return;
+    const total=dice[0]+dice[1];if(!emphatic&&total<10)return;
+    clearTimeout(fieldDiceTimer);
+    const diceEls=tray.querySelectorAll('.field-die');
+    diceEls.forEach((die,index)=>{die.textContent=dice[index];die.classList.remove('rolling')});
+    tray.classList.remove('rolling','big-roll');
+    void tray.offsetWidth;
+    tray.classList.add('rolling');if(emphatic)tray.classList.add('big-roll');
+    diceEls.forEach((die,index)=>{void die.offsetWidth;die.classList.add('rolling')});
+    fieldDiceTimer=setTimeout(()=>{tray.classList.remove('rolling','big-roll');diceEls.forEach(die=>die.classList.remove('rolling'))},1150);
   }
   function renderField() {
     const pct=game.possession==='home'?100-game.progress:game.progress;
@@ -116,7 +146,7 @@
   function touchdown(side) {
     game.score[side]+=6;game.conversionTeam=side;game.phase='conversion';game.selected=null;game.offCall=null;
     if(game.clockExpired)game.gameOver=false;
-    log(`Touchdown, ${teamName(side)}! Six points.`,'score');
+    log(`Touchdown, ${teamName(side)}! Six points.`,'score');playCrowdCheer();animateFieldDice(game.lastDice,true);
     if(side==='away'&&game.mode==='cpu'){pendingCpu=setTimeout(()=>{if(!game||game.gameOver)return;game.score.away+=1;log('CPU extra point is good.');afterConversion()},650)}
   }
   function afterConversion() {
@@ -124,9 +154,9 @@
     if(game.clockExpired){game.gameOver=true;log('Final whistle. That’s the game!','score');render();return}
     finishDriveAfterScore();render();if(game.possession==='away'&&game.mode==='cpu')scheduleCpu();
   }
-  function finishTurnover(spot,reason) {game.turnovers++;log(reason,'turnover');nextPossession({spot});}
+  function finishTurnover(spot,reason) {game.turnovers++;log(reason,'turnover');playCrowdCheer();animateFieldDice(game.lastDice,true);nextPossession({spot});}
   function resolvePlay(off,def) {
-    const side=game.possession;game.lastDice=diceRoll();const total=game.lastDice[0]+game.lastDice[1];
+    const side=game.possession;game.lastDice=diceRoll();const total=game.lastDice[0]+game.lastDice[1];animateFieldDice(game.lastDice);
     let matchup=0,turnoverBonus=0;
     if(off.type==='run'&&def.type==='run'){matchup=-.17;turnoverBonus=.025}
     if(off.type==='run'&&['zone','man'].includes(def.type))matchup=.06;
@@ -141,7 +171,7 @@
     if(off.name==='Field Goal'){
       const distance=117-game.progress,prob=Math.max(.08,Math.min(.94,.94-Math.max(0,distance-20)*.012+(def.type==='special'?-.12:0)+(total>=10?.08:0)));
       if(Math.random()<prob){game.score[side]+=3;text=`Field goal is good from ${distance} yards! ${teamName(side)} adds 3.`;log(text,'score');advanceClock();nextPossession({kickoff:true})}
-      else {text=`${distance}-yard field goal is no good. Turnover on downs.`;log(text,'turnover');game.turnovers++;advanceClock();nextPossession({spot:100-game.progress})}
+      else {text=`${distance}-yard field goal is no good. Turnover on downs.`;log(text,'turnover');game.turnovers++;playCrowdCheer();animateFieldDice(game.lastDice,true);advanceClock();nextPossession({spot:100-game.progress})}
       game.lastResult=text;game.lastDice=game.lastDice;render();if(game.possession==='away'&&game.mode==='cpu')scheduleCpu();return;
     }
     let chance=off.base+matchup+(total<=4?-.20:total<=6?-.10:total>=11?.12:total>=10?.07:0);
@@ -153,7 +183,7 @@
     let yards;
     if(Math.random()<Math.max(.12,Math.min(.94,chance))){yards=rand(off.min,off.max);if(total>=10)yards+=rand(1,4);if(def.type==='run'&&off.type==='run')yards-=rand(2,5);if(total===12)yards+=3;}
     else yards=off.type==='deep'?-rand(1,8):-rand(1,4);
-    yards=Math.max(-8,Math.min(35,yards));game.progress=Math.max(0,Math.min(100,game.progress+yards));if(side==='home')game.yards+=Math.max(0,yards);
+    yards=Math.max(-8,Math.min(35,yards));animateFieldDice(game.lastDice,Math.abs(yards)>=15);game.progress=Math.max(0,Math.min(100,game.progress+yards));if(side==='home')game.yards+=Math.max(0,yards);
     text=`${off.name} vs ${def.name}: ${yards>=0?'+':''}${yards} yards. Roll ${total}.`;
     game.lastResult=`${yards>=0?'+':''}${yards} yards · ${total>=10?'big roll':total<=4?'low roll':'steady'}`;
     if(game.progress>=100){touchdown(side);render();return}
