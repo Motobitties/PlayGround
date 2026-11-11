@@ -30,7 +30,7 @@
   }
   function freshGame(mode) {
     clearTimeout(pendingCpu);
-    game={mode,score:{home:0,away:0},quarter:1,clock:900,progress:25,down:1,toGo:10,possession:'home',phase:'offense',selected:null,offCall:null,feed:[],gameOver:false,teams:{home:$('#homeTeamSelect').value,away:$('#awayTeamSelect').value},turnovers:0,yards:0};
+    game={mode,score:{home:0,away:0},quarter:1,clock:900,progress:25,down:1,toGo:10,possession:'home',phase:'offense',selected:null,offCall:null,feed:[],gameOver:false,clockExpired:false,drives:1,teams:{home:$('#homeTeamSelect').value,away:$('#awayTeamSelect').value},turnovers:0,yards:0};
     log(`Kickoff! ${teamName('home')} starts at its own 25.`); render();
   }
   function fieldSetup() {
@@ -56,7 +56,7 @@
     $('#quarterLabel').textContent=game.gameOver?'FINAL':`${labels[game.quarter]} QUARTER`;$('#clockLabel').textContent=clockText();$('#possessionTime').textContent=clockText();
     $('#possessionLabel').textContent=`${game.possession==='home'?'YOUR BALL':`${game.mode==='cpu'?'CPU':teamName('away').toUpperCase()} BALL`}`;$('#possessionLabel').style.color=game.possession==='home'?'var(--lime)':'var(--blue)';
     $('#downDistance').innerHTML=`${labels[game.down].toLowerCase()} &amp; ${game.toGo}`;renderField();
-    $('#driveCount').textContent='—';$('#yardsStat').textContent=game.yards;$('#turnoverStat').textContent=game.turnovers;$('#recordLabel').textContent=`${game.score.home}–${game.score.away}`;
+    $('#driveCount').textContent=game.drives;$('#yardsStat').textContent=game.yards;$('#turnoverStat').textContent=game.turnovers;$('#recordLabel').textContent=`${game.score.home}–${game.score.away}`;
     $('#gameStatus').textContent=game.gameOver?'FINAL WHISTLE':game.mode==='cpu'?'SUNDAY SHOWDOWN · VS CPU':'PASS & PLAY · TWO COACHES';
     renderPanel();
   }
@@ -102,21 +102,28 @@
     game.phase='defense';game.selected=null;render();
   }
   function advanceClock() {
+    if(game.clockExpired)return;
     game.clock=Math.max(0,game.clock-30);
     if(game.clock===0){
       if(game.quarter<4){game.quarter++;game.clock=900;log(game.quarter===3?'Halftime. Third quarter kickoff!':`${labels[game.quarter]} quarter begins.`);if(game.quarter===3){game.possession=game.possession==='home'?'away':'home';game.progress=25;game.down=1;game.toGo=10}}
-      else {game.gameOver=true;log('Final whistle. That’s the game!','score')}
+      else {game.clockExpired=true;game.gameOver=true;log('Final whistle. That’s the game!','score')}
     }
   }
   function nextPossession({kickoff=false,spot=null}={}) {
-    const prev=game.possession;game.possession=prev==='home'?'away':'home';game.progress=kickoff?25:Math.max(1,Math.min(99,spot===null?100-game.progress:spot));game.down=1;game.toGo=10;game.phase='offense';game.selected=null;game.offCall=null;
+    const prev=game.possession;game.possession=prev==='home'?'away':'home';game.progress=kickoff?25:Math.max(1,Math.min(99,spot===null?100-game.progress:spot));game.down=1;game.toGo=10;game.phase='offense';game.selected=null;game.offCall=null;game.drives++;
   }
   function finishDriveAfterScore() { nextPossession({kickoff:true}); }
   function touchdown(side) {
-    game.score[side]+=6;game.conversionTeam=side;game.phase='conversion';game.selected=null;game.offCall=null;log(`Touchdown, ${teamName(side)}! Six points.`,'score');
+    game.score[side]+=6;game.conversionTeam=side;game.phase='conversion';game.selected=null;game.offCall=null;
+    if(game.clockExpired)game.gameOver=false;
+    log(`Touchdown, ${teamName(side)}! Six points.`,'score');
     if(side==='away'&&game.mode==='cpu'){pendingCpu=setTimeout(()=>{if(!game||game.gameOver)return;game.score.away+=1;log('CPU extra point is good.');afterConversion()},650)}
   }
-  function afterConversion() {game.conversionTeam=null;finishDriveAfterScore();render();if(game.possession==='away'&&game.mode==='cpu')scheduleCpu();}
+  function afterConversion() {
+    game.conversionTeam=null;
+    if(game.clockExpired){game.gameOver=true;log('Final whistle. That’s the game!','score');render();return}
+    finishDriveAfterScore();render();if(game.possession==='away'&&game.mode==='cpu')scheduleCpu();
+  }
   function finishTurnover(spot,reason) {game.turnovers++;log(reason,'turnover');nextPossession({spot});}
   function resolvePlay(off,def) {
     const side=game.possession;game.lastDice=diceRoll();const total=game.lastDice[0]+game.lastDice[1];
@@ -146,7 +153,7 @@
     let yards;
     if(Math.random()<Math.max(.12,Math.min(.94,chance))){yards=rand(off.min,off.max);if(total>=10)yards+=rand(1,4);if(def.type==='run'&&off.type==='run')yards-=rand(2,5);if(total===12)yards+=3;}
     else yards=off.type==='deep'?-rand(1,8):-rand(1,4);
-    yards=Math.max(-8,Math.min(35,yards));game.progress=Math.max(0,Math.min(100,game.progress+yards));game.yards+=Math.max(0,yards);
+    yards=Math.max(-8,Math.min(35,yards));game.progress=Math.max(0,Math.min(100,game.progress+yards));if(side==='home')game.yards+=Math.max(0,yards);
     text=`${off.name} vs ${def.name}: ${yards>=0?'+':''}${yards} yards. Roll ${total}.`;
     game.lastResult=`${yards>=0?'+':''}${yards} yards · ${total>=10?'big roll':total<=4?'low roll':'steady'}`;
     if(game.progress>=100){touchdown(side);render();return}
@@ -160,8 +167,8 @@
   }
   function scheduleCpu(){clearTimeout(pendingCpu);if(!game||game.mode!=='cpu'||game.possession!=='away'||game.gameOver||game.phase==='conversion')return;pendingCpu=setTimeout(cpuOffense,700)}
   function cpuOffense(){if(game.gameOver||game.possession!=='away')return;let off;
-    if(game.down===4&&game.progress>=58&&Math.random()<.5)off=offenseCards[5];
-    else if(game.down===4&&game.progress<58&&game.progress>55&&Math.random()<.25)off=offenseCards[4];
+    if(game.down===4&&game.progress>=55&&Math.random()<.55)off=offenseCards[5];
+    else if(game.down===4&&game.progress<55&&Math.random()<.7)off=offenseCards[4];
     else off=offenseCards[[0,1,2,3][rand(0,3)]];
     game.offCall=off;game.phase='defense';game.selected=null;render();
     // CPU attacks are resolved after a short defensive-read pause; the human picks the counter.
