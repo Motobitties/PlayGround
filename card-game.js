@@ -24,6 +24,43 @@
   const rand = (a,b) => Math.floor(Math.random()*(b-a+1))+a;
   const diceRoll = () => [rand(1,6),rand(1,6)];
   const clockText = () => timeText(game.clock);
+  let audioContext;
+  function unlockAudio() {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    if (!audioContext) audioContext = new AudioContext();
+    if (audioContext.state === 'suspended') audioContext.resume().catch(()=>{});
+  }
+  function playCrowdCheer(kind='touchdown') {
+    try {
+      unlockAudio();
+      if (!audioContext) return;
+      const ctx=audioContext,duration=kind==='touchdown'?2.15:1.35,now=ctx.currentTime;
+      const length=Math.floor(ctx.sampleRate*duration),buffer=ctx.createBuffer(1,length,ctx.sampleRate),samples=buffer.getChannelData(0);
+      for(let i=0;i<length;i++) samples[i]=(Math.random()*2-1)*(.68+Math.random()*.32);
+      const source=ctx.createBufferSource(),master=ctx.createGain();
+      source.buffer=buffer;
+      master.gain.setValueAtTime(.0001,now);
+      master.gain.linearRampToValueAtTime(kind==='touchdown'?.22:.16,now+.22);
+      master.gain.setTargetAtTime(.0001,now+.35,duration*.34);
+      source.connect(master);
+      [330,620,1050,1650].forEach((frequency,index)=>{
+        const filter=ctx.createBiquadFilter(),layer=ctx.createGain();
+        filter.type='bandpass';filter.frequency.value=frequency;filter.Q.value=.7;
+        layer.gain.value=[.52,.38,.27,.12][index];
+        master.connect(filter);filter.connect(layer);layer.connect(ctx.destination);
+      });
+      source.start(now);source.stop(now+duration);
+    } catch (_) { /* Audio is an enhancement; gameplay never depends on it. */ }
+  }
+  function animateFieldDice(dice) {
+    if (dice[0]+dice[1]<10) return;
+    const display=$('.p-dice');if(!display)return;
+    display.innerHTML=`<span>${dice[0]}</span><span>${dice[1]}</span><b>BIG PLAY!</b>`;
+    display.classList.remove('show');void display.offsetWidth;display.classList.add('show');
+    clearTimeout(display.hideTimer);
+    display.hideTimer=setTimeout(()=>display.classList.remove('show'),1250);
+  }
   function log(text, kind='') {
     game.feed.unshift({time:clockText(),text,kind}); game.feed=game.feed.slice(0,7);
     $('#feed').innerHTML=game.feed.map((x,i)=>`<div class="feed-item ${i===0?'highlight-feed':''}"><span class="feed-time">${x.time}</span><span class="feed-marker">${x.kind==='score'?'✦':x.kind==='turnover'?'↻':'•'}</span><span class="feed-copy">${x.text}</span></div>`).join('');
@@ -36,7 +73,7 @@
   function fieldSetup() {
     const field=$('#field'); if(!field||field.querySelector('.portrait-field'))return;
     field.querySelectorAll('.yardlines,.yard-labels,.field-markers').forEach(el=>el.hidden=true);
-    field.insertAdjacentHTML('beforeend','<div class="portrait-field"><div class="endzone endzone-away">AWAY END ZONE</div><div class="field-grid"></div><div class="yard-stamps"><i>10</i><i>20</i><i>30</i><i>40</i><i>50</i><i>40</i><i>30</i><i>20</i><i>10</i></div><div class="p-first"></div><div class="p-ball">🏈</div><div class="endzone endzone-home">HOME END ZONE</div></div>');
+    field.insertAdjacentHTML('beforeend','<div class="portrait-field"><div class="endzone endzone-away">AWAY END ZONE</div><div class="field-grid"></div><div class="yard-stamps"><i>10</i><i>20</i><i>30</i><i>40</i><i>50</i><i>40</i><i>30</i><i>20</i><i>10</i></div><div class="p-first"></div><div class="p-ball">🏈</div><div class="p-dice" aria-live="polite"></div><div class="endzone endzone-home">HOME END ZONE</div></div>');
   }
   function renderField() {
     const pct=game.possession==='home'?100-game.progress:game.progress;
@@ -115,13 +152,14 @@
   }
   function finishDriveAfterScore() { nextPossession({kickoff:true}); }
   function touchdown(side) {
+    playCrowdCheer('touchdown');
     game.score[side]+=6;game.conversionTeam=side;game.phase='conversion';game.selected=null;game.offCall=null;log(`Touchdown, ${teamName(side)}! Six points.`,'score');
     if(side==='away'&&game.mode==='cpu'){pendingCpu=setTimeout(()=>{if(!game||game.phase!=='conversion'||game.conversionTeam!=='away')return;game.score.away+=1;log('CPU extra point is good.');afterConversion()},650)}
   }
   function afterConversion() {game.conversionTeam=null;finishDriveAfterScore();render();if(game.possession==='away'&&game.mode==='cpu')scheduleCpu();}
-  function finishTurnover(spot,reason) {game.turnovers++;log(reason,'turnover');nextPossession({spot});}
+  function finishTurnover(spot,reason) {playCrowdCheer('turnover');game.turnovers++;log(reason,'turnover');nextPossession({spot});}
   function resolvePlay(off,def) {
-    const side=game.possession;game.lastDice=diceRoll();const total=game.lastDice[0]+game.lastDice[1];
+    const side=game.possession;game.lastDice=diceRoll();const total=game.lastDice[0]+game.lastDice[1];animateFieldDice(game.lastDice);
     let matchup=0,turnoverBonus=0;
     if(off.type==='run'&&def.type==='run'){matchup=-.17;turnoverBonus=.025}
     if(off.type==='run'&&['zone','man'].includes(def.type))matchup=.06;
@@ -136,7 +174,7 @@
     if(off.name==='Field Goal'){
       const distance=117-game.progress,prob=Math.max(.08,Math.min(.94,.94-Math.max(0,distance-20)*.012+(def.type==='special'?-.12:0)+(total>=10?.08:0)));
       if(Math.random()<prob){game.score[side]+=3;text=`Field goal is good from ${distance} yards! ${teamName(side)} adds 3.`;log(text,'score');advanceClock();nextPossession({kickoff:true})}
-      else {text=`${distance}-yard field goal is no good. Turnover on downs.`;log(text,'turnover');game.turnovers++;advanceClock();nextPossession({spot:100-game.progress})}
+      else {text=`${distance}-yard field goal is no good. Turnover on downs.`;playCrowdCheer('turnover');log(text,'turnover');game.turnovers++;advanceClock();nextPossession({spot:100-game.progress})}
       game.lastResult=text;game.lastDice=game.lastDice;render();if(game.possession==='away'&&game.mode==='cpu')scheduleCpu();return;
     }
     let chance=off.base+matchup+(total<=4?-.20:total<=6?-.10:total>=11?.12:total>=10?.07:0);
@@ -168,9 +206,10 @@
     game.offCall=off;game.phase='defense';game.selected=null;render();
     // CPU attacks are resolved after a short defensive-read pause; the human picks the counter.
   }
-  function chooseConversion(action){const side=game.conversionTeam;if(!side)return;if(action==='kick-xp'){game.score[side]+=1;log(`${teamName(side)} extra point is good.`,'score')}else{const roll=diceRoll(),made=Math.random()<.48+(roll[0]+roll[1]>=10?.14:0);game.lastDice=roll;if(made){game.score[side]+=2;log(`${teamName(side)} converts the two-point try!`,'score')}else log('Two-point attempt is stopped.','turnover')};afterConversion()}
+  function chooseConversion(action){const side=game.conversionTeam;if(!side)return;if(action==='kick-xp'){game.score[side]+=1;log(`${teamName(side)} extra point is good.`,'score')}else{const roll=diceRoll(),made=Math.random()<.48+(roll[0]+roll[1]>=10?.14:0);game.lastDice=roll;animateFieldDice(roll);if(made){game.score[side]+=2;log(`${teamName(side)} converts the two-point try!`,'score')}else log('Two-point attempt is stopped.','turnover')};afterConversion()}
   function showMenu(){clearTimeout(pendingCpu);if(game){game.mode=null;game.gameOver=false;game.phase='offense';game.selected=null;game.offCall=null}render()}
   panel.addEventListener('click',e=>{
+    unlockAudio();
     const btn=e.target.closest('button');if(!btn)return;
     if(btn.dataset.mode){freshGame(btn.dataset.mode);return}
     const action=btn.dataset.action;
